@@ -7,12 +7,12 @@ from inlinemd import *
 from leafnode import *
 from parentnode import *
 from textnode import *
+import sys
 
 #source & dest are both os.path's
 def copy_content_and_apply_func(func, remove_dest):
     def inner(source, dest):
-        if remove_dest and os.path.exists(dest):
-            shutil.rmtree(dest)
+        if remove_dest and os.path.exists(dest): shutil.rmtree(dest)
         if not os.path.exists(dest): os.mkdir(dest)
         for item in os.listdir(source):
             source_path = os.path.join(source,item)
@@ -36,7 +36,7 @@ def read_file_as_str(file_path):
         return content
     raise Exception("Error reading file")
 
-def generate_page(from_path, template_path, dest_path):
+def generate_page(from_path, template_path, dest_path, basepath):
     print(f"Generating page from {from_path} to {dest_path} using {template_path}")
     markdown = read_file_as_str(from_path)
     template = read_file_as_str(template_path)
@@ -45,17 +45,22 @@ def generate_page(from_path, template_path, dest_path):
     title = extract_title(markdown)
     fullhtml = template.replace("{{ Title }}", title)
     fullhtml = fullhtml.replace("{{ Content }}", html)
+    fullhtml = fullhtml.replace('href="/', f'href="{basepath}')
+    fullhtml = fullhtml.replace('src="/', f'src="{basepath}')
     if not os.path.exists(os.path.dirname(dest_path)):
         os.mkdir(os.path.dirname(dest_path))
     with open(dest_path, "w") as file:
         file.write(fullhtml)
 
-copy_content = copy_content_and_apply_func(lambda src, dest: shutil.copy(src,dest), True)
-convert_content = copy_content_and_apply_func(lambda src, dest: generate_page(src, "template.html", dest[:-2]+"html"), False)
-
 def main():
-    copy_content("static", "public")
-    convert_content("content", "public")
+    basepath = "/"
+    if len(sys.argv) > 1:
+        basepath = sys.argv[1]
+    copy_content = copy_content_and_apply_func(lambda src, dest: shutil.copy(src,dest), True)
+    convert_content = copy_content_and_apply_func(lambda src, dest: generate_page(src, "template.html", dest[:-2]+"html", basepath), False)
+    
+    copy_content("static", "docs")
+    convert_content("content", "docs")
 
 if __name__ == "__main__":
     main()
